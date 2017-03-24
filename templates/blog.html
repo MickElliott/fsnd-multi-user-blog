@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div id="content">
+    {% for entry in entries %}
+    <div class="post">
+      <div class="post-heading">
+        <a href="/{{entry.key().id()}}" class="post-title">{{entry.subject}}</a>
+        <div class="post-date">{{entry.created.strftime("%b %d, %Y")}}</div>
+      </div>
+      <div class="post-content">{{entry.content.replace('\n', '<br>') | safe}}</div>
+      <div>Likes: {{entry.likes}} Dislikes: {{entry.dislikes}}</div>
+      <div class="edit-options">
+        <div>Author: {{entry.author}} | <a href="/edit/{{entry.key().id()}}">Edit</a> | <a href="/delete/{{entry.key().id()}}">Delete</a> | <a href="/like/{{entry.key().id()}}">Like</a> | <a href="/dislike/{{entry.key().id()}}">Dislike</a> | <a href="/comment/{{entry.key().id()}}">Add Comment</a></div>
+      </div>
+    </div>
+    <br><br>
+    {% endfor %}
+
+  </div>
+{% endblock %}

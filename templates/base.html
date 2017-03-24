@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link type="text/css" rel="stylesheet" href="/static/main.css" />
+
+  <title>Multi-User Blog</title>
+</head>
+
+<body>
+  <a href="/" class="main-title">
+    Multi-User Blog
+  </a>
+  <div class="login-area">
+      {% if loggedIn == False %}
+      <a class="login-link" href="/login">Login</a> | <a class="login-link" href="/signup">Register</a>
+      {% else %}
+      <div>Welcome {{userName}}! | <a class="login-link" href="/logout">Logout</a></div>
+      {% endif %}
+      <hr>
+      <div><a class="login-link" href="/newpost">Submit a New Post</a></div>
+  </div>
+  {% block content %}
+  {% endblock %}
+</body>
+
+</html>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+  <h1>Add Comment to Post: "{{subject}}"</h1>
+
+  <form method="post">
+    <label>
+      <div>Comment</div>
+      <textarea name="comment"></textarea>
+    </label>
+
+    <input type="submit">
+  </form>
+
+{% endblock %}

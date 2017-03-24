@@ -17,7 +17,8 @@
     <br><br>
     {% endfor %}
     <h3>Comments:</h3>
-    {% for comment in comments %}
+    {% if comments: %}
+    {%     for comment in comments %}
     <div class="post">
       <div class="post-heading">
         <a href="/{{comment.key().id()}}" class="post-title">User: {{comment.commenter}}</a>
@@ -26,7 +27,8 @@
       <div class="post-content">{{comment.comment.replace('\n', '<br>') | safe}}</div>
     </div>
     <br><br>
-    {% endfor %}
+    {%     endfor %}
+    {% endif  %}
 
   </div>
 {% endblock %}

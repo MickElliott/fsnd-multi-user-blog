@@ -667,8 +667,8 @@ class BlogEntryHandler(Handler):
                 query = """select * from Comment
                                 where post_id = :1
                                 order by created DESC limit 50"""
+                
                 user_comments = db.GqlQuery(query, int(ID))
-
                 self.render("blog_entry.html",
                             userName=userName,
                             loggedIn=loggedIn,

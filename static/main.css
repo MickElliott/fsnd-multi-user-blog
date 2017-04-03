@@ -30,6 +30,10 @@ body {
     text-decoration: underline;
 }
 
+.edit-options: {
+    color: blue;
+}
+
 h2 {
     font-size: 24px;
     font-weight: bold;
@@ -64,6 +68,10 @@ textarea {
 }
 
 input[type=submit] {
+  font-size: 24px;
+}
+
+input[type=button] {
   font-size: 24px;
 }
 

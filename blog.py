@@ -62,26 +62,26 @@ class Likes(db.Model):
     ''' This class is a Datastore model of a like.
 
         Attributes:
-            liker_name:  User name of the user who submitted the like.
-            post_id:     Unique ID number of the post that has been liked.
-            post_author: Author of the post that has been liked.
+            liker:   User name of the user who submitted the like.
+            post_id: Unique ID number of the post that has been liked.
     '''
-    liker_name = db.StringProperty(required=True)
+    liker = db.ReferenceProperty(Account,
+                                 collection_name='likes',
+                                 required=True)
     post_id = db.IntegerProperty(required=True)
-    post_author = db.StringProperty(required=True)
 
 
 class Dislikes(db.Model):
     ''' This class is a Datastore model of a dislike.
 
         Attributes:
-            disliker_name: User name of the user who submitted the dislike.
-            post_id:       Unique ID number of the post that has been disliked.
-            post_author:   Author of the post that has been disliked.
+            disliker: User name of the user who submitted the dislike.
+            post_id:  Unique ID number of the post that has been disliked.
     '''
-    disliker_name = db.StringProperty(required=True)
+    disliker = db.ReferenceProperty(Account,
+                                    collection_name='dislikes',
+                                    required=True)
     post_id = db.IntegerProperty(required=True)
-    post_author = db.StringProperty(required=True)
 
 
 class Comment(db.Model):
@@ -94,7 +94,9 @@ class Comment(db.Model):
             created:   Automatically generated DateTime when the comment was
                        submitted.
     '''
-    commenter = db.StringProperty(required=True)
+    commenter = db.ReferenceProperty(Account,
+                                     collection_name='comments',
+                                     required=True)
     post_id = db.IntegerProperty(required=True)
     comment = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)
@@ -109,13 +111,13 @@ class BlogEntry(db.Model):
             created:  Automatically generated DateTime when the post was
                       submitted.
             author:   User name of the author of the post.
-            likes:    Number of likes submitted for this post.
-            dislikes: Number of likes submitted for this post.
     '''
     subject = db.StringProperty(required=True)
     content = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)
-    author = db.StringProperty(required=True)
+    author = db.ReferenceProperty(Account,
+                                  collection_name='posts',
+                                  required=True)
     likes = db.IntegerProperty(required=True)
     dislikes = db.IntegerProperty(required=True)
 
@@ -191,9 +193,9 @@ class Handler(webapp2.RequestHandler):
                 ID = int(cookie_val)
 
                 # Lookup the name of the user_id
-                name = Account.get_by_id(int(ID), parent=None).username
+                user = Account.get_by_id(int(ID), parent=None)
 
-                return True, name
+                return True, user
         return False, None
 
     def RegisterUser(self, name, pwd, eml):
@@ -216,15 +218,36 @@ class Handler(webapp2.RequestHandler):
     def ValidatePassword(self, name, pwd, pwd_hash):
         return self.valid_pw(name, pwd, pwd_hash)
 
+    def GetPostById(self, ID):
+        if ID:
+            post = BlogEntry.get_by_id(int(ID), parent=None)
+
+            # get_by_id() will return None if no post exists.
+            return post
+        else:
+            return None
+
+    def UserOwnsPost(self, user, post):
+        if post:
+            if post.author.username == user.username:
+                return True
+        return False
+        
+    def UserDoesntOwnPost(self, user, post):
+        if post:
+            if post.author.username != user.username:
+                return True
+        return False
+
 
 class WelcomeHandler(Handler):
     ''' This class handles the request for the Welcome page. It inherits from
         the Handler class.
     '''
     def get(self):
-        loggedIn, name = self.ValidateUser()
-        if name:
-            self.render("welcome.html", userName=name)
+        loggedIn, user = self.ValidateUser()
+        if user:
+            self.render("welcome.html", userName=user.username)
         else:
             self.redirect("/signup")
 
@@ -234,7 +257,12 @@ class SignupHandler(Handler):
         the Handler class.
     '''
     def get(self):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
+
+        if user:
+            name = user.username
+        else:
+            name = ""
 
         self.render("signup.html",
                     user_value="",
@@ -244,7 +272,7 @@ class SignupHandler(Handler):
                     email_value="",
                     email_error="",
                     loggedIn=loggedIn,
-                    userName=userName)
+                    userName=name)
 
     def post(self):
         exists = False
@@ -292,7 +320,12 @@ class SignupHandler(Handler):
         if not self.valid_email(eml):
             email_error = EMAIL_ERROR
 
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
+
+        if user:
+            name = user.username
+        else:
+            name = ""
 
         self.render("signup.html",
                     user_value=name,
@@ -301,7 +334,7 @@ class SignupHandler(Handler):
                     pwd_mismatch=pwd_mismatch,
                     email_value=eml,
                     email_error=email_error,
-                    userName=userName,
+                    userName=name,
                     loggedIn=loggedIn)
 
 
@@ -310,11 +343,16 @@ class LoginHandler(Handler):
         the Handler class.
     '''
     def get(self):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
+
+        if user:
+            name = user.username
+        else:
+            name = ""
 
         self.render("login.html",
                     login_error="",
-                    userName=userName,
+                    userName=name,
                     loggedIn=loggedIn)
 
     def post(self):
@@ -328,11 +366,16 @@ class LoginHandler(Handler):
 
         if count == 0:
             # Re-render form with error message
-            loggedIn, userName = self.ValidateUser()
+            loggedIn, user = self.ValidateUser()
+
+            if user:
+                name = user.username
+            else:
+                name = ""
 
             self.render("login.html",
                         login_error=LOGIN_ERROR,
-                        userName=userName,
+                        userName=name,
                         loggedIn=loggedIn)
         else:
             # Validate password
@@ -346,11 +389,16 @@ class LoginHandler(Handler):
                 self.redirect("/")
             else:
                 # Re-render form with error message
-                loggedIn, userName = self.ValidateUser()
+                loggedIn, user = self.ValidateUser()
+
+                if user:
+                    name = user.username
+                else:
+                    name = ""
 
                 self.render("login.html",
                             login_error=LOGIN_ERROR,
-                            userName=userName,
+                            userName=name,
                             loggedIn=loggedIn)
 
         return
@@ -373,15 +421,16 @@ class DeletePostHandler(Handler):
         the Handler class.
     '''
     def get(self, ID):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
 
-        if userName:
-            be = BlogEntry.get_by_id(int(ID), parent=None)
+        if loggedIn:
+            post = BlogEntry.get_by_id(int(ID), parent=None)
 
-            if ID and be:
-                if be.author == userName or be.author is None:
+            if ID and post:
+                #if post in user.posts:
+                if post.author.username == user.username:
                     # Delete entry
-                    be.delete()
+                    post.delete()
                     self.redirect("/")
 
                 else:
@@ -400,13 +449,18 @@ class PostHandler(Handler):
         NewPostHandler and EditPostHandler classes.
     '''
     def render_form(self, subject="", content="", error=""):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
+
+        if user:
+            name = user.username
+        else:
+            name = ""
 
         self.render("edit_post.html",
                     subject=subject,
                     content=content,
                     error=error,
-                    userName=userName,
+                    userName=name,
                     loggedIn=loggedIn)
 
 
@@ -415,19 +469,23 @@ class NewPostHandler(PostHandler):
         the Handler class.
     '''
     def get(self):
-        loggedIn, userName = self.ValidateUser()
-        self.render_form()
+        loggedIn, user = self.ValidateUser()
+
+        if loggedIn:
+            self.render_form()
+        else:
+            self.redirect("/login")
 
     def post(self):
         subject = self.request.get("subject")
         content = self.request.get("content")
 
-        loggedIn, userName = self.ValidateUser()
-        if userName:
+        loggedIn, user = self.ValidateUser()
+        if loggedIn:
             if (subject and content):
                 be = BlogEntry(subject=subject,
                                content=content,
-                               author=userName,
+                               author=user,
                                likes=0,
                                dislikes=0)
                 be.put()
@@ -446,12 +504,14 @@ class EditPostHandler(PostHandler):
         the Handler class.
     '''
     def get(self, ID):
-        loggedIn, userName = self.ValidateUser()
-        if userName:
-            if ID:
-                be = BlogEntry.get_by_id(int(ID), parent=None)
-                if be.author == userName:
-                    self.render_form(subject=be.subject, content=be.content)
+        loggedIn, user = self.ValidateUser()
+
+        if loggedIn:
+            post = self.GetPostById(ID)
+
+            if post:
+                if self.UserOwnsPost(user, post):
+                    self.render_form(subject=post.subject, content=post.content)
                 else:
                     redAddress = "/error/%s" % str(ErrorNumbers.CANT_EDIT_POST)
                     self.redirect(redAddress)
@@ -460,27 +520,33 @@ class EditPostHandler(PostHandler):
         else:
             self.redirect("/login")
 
+
     def post(self, ID):
         subject = self.request.get("subject")
         content = self.request.get("content")
 
-        loggedIn, userName = self.ValidateUser()
-        if userName:
-            if (subject and content):
-                if ID:
-                    be = BlogEntry.get_by_id(int(ID), parent=None)
-                    be.subject = subject
-                    be.content = content
-                    be.put()
+        loggedIn, user = self.ValidateUser()
+        if loggedIn:
+            post = self.GetPostById(ID)
+            if post:
+                if self.UserOwnsPost(user, post):
+                    if (subject and content):
+                        post.subject = subject
+                        post.content = content
+                        post.put()
 
-                    redAddress = "/%s" % ID
-                    self.redirect(redAddress)
+                        redAddress = "/%s" % ID
+                        self.redirect(redAddress)
+                    else:
+                        error = "subject and content, please!"
+                        self.render_form(subject, content, error)
                 else:
-                    self.error(404)
-
+                    # The user doesn't own this post.
+                    self.redirect("/login")
             else:
-                error = "subject and content, please!"
-                self.render_form(subject, content, error)
+                self.error(404)
+        else:
+            self.redirect("/login")
 
 
 class LikeHandler(Handler):
@@ -488,28 +554,27 @@ class LikeHandler(Handler):
         the Handler class.
     '''
     def get(self, ID):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
 
-        if userName:
-            if ID:
-                be = BlogEntry.get_by_id(int(ID), parent=None)
-                if be.author != userName:
+        if loggedIn:
+            post = self.GetPostById(ID)
+            if post:
+                if self.UserDoesntOwnPost(user, post):
                     # Check if this user has already liked this post.
                     query = """select * from Likes
-                                   where liker_name= :1 and post_id= :2
+                                   where liker= :1 and post_id= :2
                                    limit 1"""
-                    q = db.GqlQuery(query, userName, int(ID))
+                    q = db.GqlQuery(query, user, int(ID))
                     count = q.count()
 
                     if count == 0:
-                        # Increment the like count and put to datastore.
-                        be.likes = int(be.likes) + 1
-                        be.put()
+                        # Increment the like count and put to Model.
+                        post.likes = post.likes + 1
+                        post.put()
 
                         # Add to Likes datastore.
-                        likeEntry = Likes(liker_name=userName,
-                                          post_id=int(ID),
-                                          post_author=be.author)
+                        likeEntry = Likes(liker=user,
+                                          post_id=int(ID))
                         likeEntry.put()
 
                         # Redirect to blog.
@@ -533,28 +598,27 @@ class DislikeHandler(Handler):
         the Handler class.
     '''
     def get(self, ID):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
 
-        if userName:
-            if ID:
-                be = BlogEntry.get_by_id(int(ID), parent=None)
-                if be.author != userName:
+        if loggedIn:
+            post = self.GetPostById(ID)
+            if post:
+                if self.UserDoesntOwnPost(user, post):
                     # Check if this user has already disliked this post.
                     query = """select * from Dislikes
-                                   where disliker_name= :1 and post_id= :2
+                                   where disliker= :1 and post_id= :2
                                    limit 1"""
-                    q = db.GqlQuery(query, userName, int(ID))
+                    q = db.GqlQuery(query, user, int(ID))
                     count = q.count()
 
                     if count == 0:
                         # Increment the dislike count and put to datastore.
-                        be.dislikes += 1
-                        be.put()
+                        post.dislikes = post.dislikes + 1
+                        post.put()
 
                         # Add to Likes datastore.
-                        dislikeEntry = Dislikes(disliker_name=userName,
-                                                post_id=int(ID),
-                                                post_author=be.author)
+                        dislikeEntry = Dislikes(disliker=user,
+                                                post_id=int(ID))
                         dislikeEntry.put()
 
                         # Redirect to blog.
@@ -578,18 +642,17 @@ class CommentHandler(Handler):
         the Handler class.
     '''
     def get(self, ID):
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
 
-        if userName:
-            if ID:
-                be = BlogEntry.get_by_id(int(ID), parent=None)
-                if be.author != userName:
-                    loggedIn, userName = self.ValidateUser()
+        if loggedIn:
+            post = self.GetPostById(ID)
 
+            if post:
+                if self.UserDoesntOwnPost(user, post):
                     self.render("edit_comment.html",
-                                subject=be.subject,
+                                subject=post.subject,
                                 loggedIn=loggedIn,
-                                userName=userName)
+                                userName=user.username)
                 else:
                     ErrNo = str(ErrorNumbers.CANT_COMMENT_OWN_POST)
                     redAddress = "/error/%s" % ErrNo
@@ -602,19 +665,29 @@ class CommentHandler(Handler):
     def post(self, ID):
         user_comment = self.request.get("comment")
 
-        loggedIn, userName = self.ValidateUser()
-        if userName:
-            if user_comment:
-                c = Comment(commenter=userName,
-                            post_id=int(ID),
-                            comment=user_comment)
-                c.put()
+        loggedIn, user = self.ValidateUser()
+        if loggedIn:
+            post = self.GetPostById(ID)
+            if post:
+                if self.UserDoesntOwnPost(user, post):
+                    if user_comment:
+                        c = Comment(commenter=user,
+                                    post_id=int(ID),
+                                    comment=user_comment)
+                        c.put()
 
-                redAddress = "/%s" % ID
-                self.redirect(redAddress)
+                        redAddress = "/%s" % ID
+                        self.redirect(redAddress)
+
+                    else:
+                        self.redirect("/")
+                else:
+                    ErrNo = str(ErrorNumbers.CANT_COMMENT_OWN_POST)
+                    redAddress = "/error/%s" % ErrNo
+                    self.redirect(redAddress)
 
             else:
-                self.redirect("/")
+                self.error(404)
         else:
             self.redirect("/login")
 
@@ -642,10 +715,15 @@ class ErrorHandler(Handler):
         else:
             errorMessage = ""
 
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
+
+        if user:
+            name = user.username
+        else:
+            name = ""
 
         self.render("error.html",
-                    userName=userName,
+                    userName=user.username,
                     loggedIn=loggedIn,
                     error=errorMessage)
 
@@ -655,27 +733,32 @@ class BlogEntryHandler(Handler):
         the Handler class.
     '''
     def get(self, ID):
-        if ID:
-            entryList = []
-            entry = BlogEntry.get_by_id(int(ID), parent=None)
+        postList = []
+        post = self.GetPostById(ID)
 
-            if entry:
-                entryList.append(entry)
-                loggedIn, userName = self.ValidateUser()
+        if post:
+            postList.append(post)
+            loggedIn, user = self.ValidateUser()
 
-                # Get comments for the blog entry.
-                query = """select * from Comment
-                                where post_id = :1
-                                order by created DESC limit 50"""
+            # Get comments for the blog entry.
+            query = """select * from Comment
+                            where post_id = :1
+                            order by created DESC limit 50"""
                 
-                user_comments = db.GqlQuery(query, int(ID))
-                self.render("blog_entry.html",
-                            userName=userName,
-                            loggedIn=loggedIn,
-                            entries=entryList,
-                            comments=user_comments)
+            user_comments = db.GqlQuery(query, int(ID))
 
-                return
+            if user:
+                name = user.username
+            else:
+                name = ""
+
+            self.render("blog_entry.html",
+                        userName=name,
+                        loggedIn=loggedIn,
+                        entries=postList,
+                        comments=user_comments)
+
+            return
 
         self.error(404)
 
@@ -688,14 +771,15 @@ class BlogHandler(Handler):
         query = "select * from BlogEntry order by created DESC limit 10"
         entries = db.GqlQuery(query)
 
-        loggedIn, userName = self.ValidateUser()
+        loggedIn, user = self.ValidateUser()
 
-        # Get comments for the blog entry.
-        query = "select * from Comment order by created DESC limit 50"
-        user_comments = db.GqlQuery(query)
+        if user:
+            name = user.username
+        else:
+            name = ""
 
         self.render("blog.html",
-                    userName=userName,
+                    userName=name,
                     loggedIn=loggedIn,
                     entries=entries)
 

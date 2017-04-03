@@ -11,7 +11,7 @@
       <div class="post-content">{{entry.content.replace('\n', '<br>') | safe}}</div>
       <div>Likes: {{entry.likes}} Dislikes: {{entry.dislikes}}</div>
       <div class="edit-options">
-        <div>Author: {{entry.author}} | <a href="/edit/{{entry.key().id()}}">Edit</a> | <a href="/delete/{{entry.key().id()}}">Delete</a> | <a href="/like/{{entry.key().id()}}">Like</a> | <a href="/dislike/{{entry.key().id()}}">Dislike</a> | <a href="/comment/{{entry.key().id()}}">Add Comment</a></div>
+        <div>Author: {{entry.author.username}} | <a href="/edit/{{entry.key().id()}}">Edit</a> | <a href="/delete/{{entry.key().id()}}">Delete</a> | <a href="/like/{{entry.key().id()}}">Like</a> | <a href="/dislike/{{entry.key().id()}}">Dislike</a> | <a href="/comment/{{entry.key().id()}}">Add Comment</a></div>
       </div>
     </div>
     <br><br>

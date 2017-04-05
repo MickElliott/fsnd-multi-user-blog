@@ -11,7 +11,7 @@
       <div class="post-content">{{entry.content.replace('\n', '<br>') | safe}}</div>
       <div>Likes: {{entry.likes}} Dislikes: {{entry.dislikes}}</div>
       <div class="edit-options">
-        <div>Author: {{entry.author.username}} | <a href="/edit/{{entry.key().id()}}">Edit</a> | <a href="/delete/{{entry.key().id()}}">Delete</a> | <a href="/like/{{entry.key().id()}}">Like</a> | <a href="/dislike/{{entry.key().id()}}">Dislike</a> | <a href="/comment/{{entry.key().id()}}">Add Comment</a></div>
+        <div>Author: {{entry.author.username}} | <a href="/editpost/{{entry.key().id()}}">Edit</a> | <a href="/delete/{{entry.key().id()}}">Delete</a> | <a href="/like/{{entry.key().id()}}">Like</a> | <a href="/dislike/{{entry.key().id()}}">Dislike</a> | <a href="/newcomment/{{entry.key().id()}}">Add Comment</a></div>
       </div>
     </div>
     <br><br>
@@ -21,10 +21,13 @@
     {%     for comment in comments %}
     <div class="post">
       <div class="post-heading">
-        <a href="/{{comment.key().id()}}" class="post-title">User: {{comment.commenter.username}}</a>
+        <div class="post-title">User: {{comment.commenter.username}}</div>
         <div class="post-date">{{comment.created.strftime("%b %d, %Y")}}</div>
       </div>
       <div class="post-content">{{comment.comment.replace('\n', '<br>') | safe}}</div>
+      <div class="edit-options">
+        <a href="/editcomment/{{comment.key().id()}}">Edit Comment</a> | <a href="/deletecomment/{{comment.key().id()}}">Delete Comment</a>
+      </div>
     </div>
     <br><br>
     {%     endfor %}

@@ -42,6 +42,8 @@ class ErrorNumbers:
     CANT_DISLIKE_OWN_POST = 4
     CANT_DISLIKE_SAME_POST = 5
     CANT_COMMENT_OWN_POST = 6
+    CANT_EDIT_COMMENT = 7
+    CANT_DELETE_COMMENT = 8
 
 
 class Account(db.Model):
@@ -236,6 +238,21 @@ class Handler(webapp2.RequestHandler):
     def UserDoesntOwnPost(self, user, post):
         if post:
             if post.author.username != user.username:
+                return True
+        return False
+
+    def GetCommentById(self, ID):
+        if ID:
+            comment = Comment.get_by_id(int(ID), parent=None)
+
+            # get_by_id() will return None if no comment exists.
+            return comment
+        else:
+            return None
+
+    def UserOwnsComment(self, user, comment):
+        if comment:
+            if comment.commenter.username == user.username:
                 return True
         return False
 
@@ -637,9 +654,9 @@ class DislikeHandler(Handler):
             self.redirect("/login")
 
 
-class CommentHandler(Handler):
-    ''' This class handles the request to comment on a post. It inherits from
-        the Handler class.
+class NewCommentHandler(Handler):
+    ''' This class handles the request to add a comment on a post. It inherits
+        from the Handler class.
     '''
     def get(self, ID):
         loggedIn, user = self.ValidateUser()
@@ -649,8 +666,12 @@ class CommentHandler(Handler):
 
             if post:
                 if self.UserDoesntOwnPost(user, post):
+                    # Find if user has already left a comment for this post.
+
+
                     self.render("edit_comment.html",
                                 subject=post.subject,
+                                comment="",
                                 loggedIn=loggedIn,
                                 userName=user.username)
                 else:
@@ -692,6 +713,92 @@ class CommentHandler(Handler):
             self.redirect("/login")
 
 
+class EditCommentHandler(Handler):
+    ''' This class handles the request to add a comment on a post. It inherits
+        from the Handler class.
+    '''
+    def get(self, ID):
+        loggedIn, user = self.ValidateUser()
+
+        if loggedIn:
+            comment = self.GetCommentById(ID)
+
+            if comment:
+                post = self.GetPostById(comment.post_id)
+                if post:
+                    if self.UserOwnsComment(user, comment):
+                        self.render("edit_comment.html",
+                                    subject=post.subject,
+                                    comment=comment.comment,
+                                    loggedIn=loggedIn,
+                                    userName=user.username)
+                    else:
+                        ErrNo = str(ErrorNumbers.CANT_EDIT_COMMENT)
+                        redAddress = "/error/%s" % ErrNo
+                        self.redirect(redAddress)
+                else:
+                    self.error(404)
+            else:
+                self.error(404)
+        else:
+            self.redirect("/login")
+
+    def post(self, ID):
+        user_comment = self.request.get("comment")
+
+        loggedIn, user = self.ValidateUser()
+        if loggedIn:
+            comment = self.GetCommentById(ID)
+            if comment:
+                if self.UserOwnsComment(user, comment):
+                    if user_comment:
+                        comment.comment = user_comment
+                        comment.put()
+
+                        redAddress = "/%s" % comment.post_id
+                        self.redirect(redAddress)
+
+                    else:
+                        self.redirect("/")
+                else:
+                    ErrNo = str(ErrorNumbers.CANT_EDIT_COMMENT)
+                    redAddress = "/error/%s" % ErrNo
+                    self.redirect(redAddress)
+
+            else:
+                self.error(404)
+        else:
+            self.redirect("/login")
+
+
+class DeleteCommentHandler(Handler):
+    ''' This class handles the request to delete a comment. It inherits from
+        the Handler class.
+    '''
+    def get(self, ID):
+        loggedIn, user = self.ValidateUser()
+
+        if loggedIn:
+            comment = Comment.get_by_id(int(ID), parent=None)
+
+            if ID and comment:
+                if comment.commenter.username == user.username:
+                    # Delete entry
+                    comment.delete()
+
+                    redAddress = "/%s" % comment.post_id
+                    self.redirect(redAddress)                        
+
+                else:
+                    ErrNo = str(ErrorNumbers.CANT_DELETE_COMMENT)
+                    redAddress = "/error/%s" % ErrNo
+                    self.redirect(redAddress)
+            else:
+                self.error(404)
+        else:
+            self.redirect("/login")
+
+
 class ErrorHandler(Handler):
     ''' This class handles requests for the error page. It inherits from
         the Handler class.
@@ -712,6 +819,10 @@ class ErrorHandler(Handler):
             errorMessage = "You have already disliked this post."
         elif Error == ErrorNumbers.CANT_COMMENT_OWN_POST:
             errorMessage = "Can't comment on your own post."
+        elif Error == ErrorNumbers.CANT_EDIT_COMMENT:
+            errorMessage = "Can't edit other user's comments."
+        elif Error == ErrorNumbers.CANT_DELETE_COMMENT:
+            errorMessage = "Can't delete other user's comments."
         else:
             errorMessage = ""
 
@@ -786,7 +897,7 @@ class BlogHandler(Handler):
 
 app = webapp2.WSGIApplication([('/', BlogHandler),
                                ('/newpost', NewPostHandler),
-                               ('/edit/(\d*)', EditPostHandler),
+                               ('/editpost/(\d*)', EditPostHandler),
                                ('/delete/(\d*)', DeletePostHandler),
                                ('/(\d+)', BlogEntryHandler),
                                ('/signup', SignupHandler),
@@ -796,5 +907,7 @@ app = webapp2.WSGIApplication([('/', BlogHandler),
                                ('/like/(\d*)', LikeHandler),
                                ('/dislike/(\d*)', DislikeHandler),
                                ('/error/(\d*)', ErrorHandler),
-                               ('/comment/(\d*)', CommentHandler)],
+                               ('/newcomment/(\d*)', NewCommentHandler),
+                               ('/editcomment/(\d*)', EditCommentHandler),
+                               ('/deletecomment/(\d*)', DeleteCommentHandler)],
                               debug=True)

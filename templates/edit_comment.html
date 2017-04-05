@@ -2,12 +2,12 @@
 
 {% block content %}
 
-  <h1>Add Comment to Post: "{{subject}}"</h1>
+  <h1>Edit Comment for Post: "{{subject}}"</h1>
 
   <form method="post">
     <label>
       <div>Comment</div>
-      <textarea name="comment"></textarea>
+      <textarea name="comment">{{comment}}</textarea>
     </label>
 
     <input type="submit">
